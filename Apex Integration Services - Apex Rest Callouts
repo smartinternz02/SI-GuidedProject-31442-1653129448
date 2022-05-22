@@ -1,0 +1,53 @@
+Animal Locator Class-
+
+public class AnimalLocator {
+    public static String getAnimalNameById (Integer i) {
+        Http http = new Http();
+        HttpRequest request = new HttpRequest();
+        request.setEndpoint(' https://th-apex-http-callout.herokuapp.com/animals/'+i);
+        request.setMethod('GET');
+        HttpResponse response = http.send(request);
+
+
+            Map<String, Object> result = (Map<String, Object>)JSON.deserializeUntyped(response.getBody());
+            Map<String, Object> animal = (Map<String, Object>)result.get('animal');
+            System.debug('name: '+string.valueOf(animal.get('name')));
+            return string.valueOf(animal.get('name'));
+
+    }
+
+}
+
+
+
+Animal Locator Mock Class-
+
+@isTest
+global class AnimalLocatorMock implements HttpCalloutMock {
+
+    global HttpResponse respond(HttpRequest request) {
+        HttpResponse response = new HttpResponse();
+        response.setHeader('contentType' , 'application/json');
+        response.setBody('{"animal":{"id":1,"name":"moose","eats":"plants","says":"bellows"}}');
+        response.setStatusCode(200);
+        return response;
+    }
+}
+
+
+
+Animal Locator Test Class-
+
+
+@isTest
+private class AnimalLocatorTest {
+
+    @isTest
+    static void animalLocatorTest1() {
+        Test.setMock(HttpCalloutMock.class, new AnimalLocatorMock());
+        String actual = AnimalLocator.getAnimalNameById(1);
+        String expected = 'moose';
+        System.assertEquals(actual, expected);
+    }
+
+}
