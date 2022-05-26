@@ -1,0 +1,52 @@
+Warehouse Callout Service Class-
+
+
+public with sharing class WarehouseCalloutService implements Queueable {
+    private static final String WAREHOUSE_URL = 'https://th-superbadge-apex.herokuapp.com/equipment';
+
+
+    @future(callout=true)
+    public static void runWarehouseEquipmentSync(){
+        Http http = new Http();
+        HttpRequest request = new HttpRequest();
+
+        request.setEndpoint(WAREHOUSE_URL);
+        request.setMethod('GET');
+        HttpResponse response = http.send(request);
+
+        List<Product2> warehouseWh = new List<Product2>();
+
+        if (response.getStatusCode() == 200){
+            List<Object> jsonResponse = (List<Object>)JSON.deserializeUntyped(response.getBody());
+            System.debug(response.getBody());
+
+            for (Object wh : jsonResponse){
+                Map<String,Object> mapJson = (Map<String,Object>)wh;
+                Product2 myWh = new Product2();
+                myWh.Replacement_Part__c = (Boolean) mapJson.get('replacement');
+                myWh.Name = (String) mapJson.get('name');
+                myWh.Maintenance_Cycle__c = (Integer) mapJson.get('maintenanceperiod');
+                myWh.Lifespan_Months__c = (Integer) mapJson.get('lifespan');
+                myWh.Cost__c = (Integer) mapJson.get('cost');
+                myWh.Warehouse_SKU__c = (String) mapJson.get('sku');
+                myWh.Current_Inventory__c = (Double) mapJson.get('quantity');
+                myWh.ProductCode = (String) mapJson.get('_id');
+                warehouseWh.add(myWh);
+            }
+               if (warehouseWh.size() > 0){
+                upsert warehouseWh;
+                System.debug('Your equipment was synced with the warehouse one');
+            }
+        }
+    }
+
+    public static void execute (QueueableContext context){
+        runWarehouseEquipmentSync();
+    }
+
+}
+
+
+
+
+
