@@ -1,0 +1,87 @@
+Warehouse Callout Service Class-
+
+
+public with sharing class WarehouseCalloutService {
+
+    private static final String WAREHOUSE_URL = 'https://th-superbadge-apex.herokuapp.com/equipment';
+
+    //@future(callout=true)
+    public static void runWarehouseEquipmentSync(){
+
+        Http http = new Http();
+        HttpRequest request = new HttpRequest();
+
+        request.setEndpoint(WAREHOUSE_URL);
+        request.setMethod('GET');
+        HttpResponse response = http.send(request);
+
+
+        List<Product2> warehouseWh = new List<Product2>();
+
+        if (response.getStatusCode() == 200){
+            List<Object> jsonResponse = (List<Object>)JSON.deserializeUntyped(response.getBody());
+            System.debug(response.getBody());
+
+            for (Object wh : jsonResponse){
+                Map<String,Object> mapJson = (Map<String,Object>)wh;
+                Product2 myWh = new Product2();
+                myWh.Replacement_Part__c = (Boolean) mapJson.get('replacement');
+                myWh.Name = (String) mapJson.get('name');
+                myWh.Maintenance_Cycle__c = (Integer) mapJson.get('maintenanceperiod');
+                myWh.Lifespan_Months__c = (Integer) mapJson.get('lifespan');
+                myWh.Cost__c = (Decimal) mapJson.get('lifespan');
+                myWh.Warehouse_SKU__c = (String) mapJson.get('sku');
+                myWh.Current_Inventory__c = (Double) mapJson.get('quantity');
+                warehouseWh.add(myWh);
+            }
+              if (warehouseWh.size() > 0){
+                upsert warehouseWh;
+                System.debug('Your equipment was synced with the warehouse one');
+                System.debug(warehouseWh);
+            }
+
+        }
+    }
+}
+
+
+
+
+
+Warehouse Callout Service Mock Class-
+
+
+@isTest
+global class WarehouseCalloutServiceMock implements HttpCalloutMock {
+
+    global static HttpResponse respond(HttpRequest request){
+
+        System.assertEquals('https://th-superbadge-apex.herokuapp.com/equipment', request.getEndpoint());
+        System.assertEquals('GET', request.getMethod());
+
+        HttpResponse response = new HttpResponse();
+        response.setHeader('Content-Type', 'application/json');
+        response.setBody('[{"_id":"55d66226726b611100aaf744","replacement":false,"quantity":5,"name":"Generator 2000 kw","maintenanceperiod":365,"lifespan":120,"cost":6000,"sku":"100006"}]');
+        response.setStatusCode(200);
+        return response;
+    }
+}
+
+
+
+
+Warehouse Callout Service Test Class-
+
+
+@IsTest
+private class WarehouseCalloutServiceTest {
+      @isTest  
+    static void testWareHouseCallout(){
+        Test.startTest();
+
+        Test.setMock(HTTPCalloutMock.class, new WarehouseCalloutServiceMock());
+        WarehouseCalloutService.runWarehouseEquipmentSync();
+        Test.stopTest();
+        System.assertEquals(1, [SELECT count() FROM Product2]);
+    }     
+}
